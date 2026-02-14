@@ -102,15 +102,24 @@ func FormatSecretsOnly(secrets []*inventory.Secret) string {
 	var b strings.Builder
 
 	b.WriteString("## Secrets Detected\n\n")
-	b.WriteString("| # | Location | Validation |\n")
-	b.WriteString("|---|----------|------------|\n")
+	b.WriteString("| # | Location | Status |\n")
+	b.WriteString("|---|----------|--------|\n")
 
 	for i, s := range secrets {
-		validation := "not validated"
+		status := "NOT_VALIDATED"
 		if !s.Validation.At.IsZero() {
-			validation = fmt.Sprintf("%v", s.Validation.Status)
+			switch string(s.Validation.Status) {
+			case "VALIDATION_VALID":
+				status = "**ACTIVE**"
+			case "VALIDATION_INVALID":
+				status = "INACTIVE"
+			case "VALIDATION_FAILED":
+				status = "VALIDATION_ERROR"
+			default:
+				status = string(s.Validation.Status)
+			}
 		}
-		fmt.Fprintf(&b, "| %d | %s | %s |\n", i+1, s.Location, validation)
+		fmt.Fprintf(&b, "| %d | %s | %s |\n", i+1, s.Location, status)
 	}
 
 	return truncate(b.String())

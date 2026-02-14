@@ -55,6 +55,11 @@ func (r *Result) HasSecrets() bool {
 	return len(r.Secrets()) > 0
 }
 
+// HasFindings returns true if any generic findings were found.
+func (r *Result) HasFindings() bool {
+	return len(r.Findings()) > 0
+}
+
 // ImageResult wraps Result with container image metadata.
 type ImageResult struct {
 	Result

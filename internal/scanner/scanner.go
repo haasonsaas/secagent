@@ -3,6 +3,7 @@ package scanner
 import (
 	"context"
 	"fmt"
+	"regexp"
 	"strings"
 
 	scalibr "github.com/google/osv-scalibr"
@@ -17,6 +18,7 @@ const (
 	ModeSCA     ScanMode = iota // Software composition analysis only
 	ModeSecrets                 // Secret detection only
 	ModeFull                    // Both SCA and secrets
+	ModeHarden                  // Security hardening detectors
 )
 
 // scaPlugins are the plugin names used for software composition analysis.
@@ -27,12 +29,21 @@ var secretPlugins = []string{"secrets"}
 
 // ScanOptions configures a filesystem scan.
 type ScanOptions struct {
-	Target       string
-	Mode         ScanMode
-	ExtraPlugins []string
-	WithOSVMatch bool
-	MaxFileSize  int
+	Target               string
+	Mode                 ScanMode
+	ExtraPlugins         []string
+	WithOSVMatch         bool
+	WithReachability     bool
+	WithSecretValidation bool
+	WithLicenseEnrichment bool
+	MaxFileSize          int
+	DirsToSkip           []string
+	SkipDirRegex         string
+	UseGitignore         bool
 }
+
+// hardenPlugins are the plugin names used for security hardening detectors.
+var hardenPlugins = []string{"cis", "weakcredentials", "misc", "endoflife", "govulncheck"}
 
 func pluginNamesForMode(mode ScanMode) []string {
 	switch mode {
@@ -42,6 +53,8 @@ func pluginNamesForMode(mode ScanMode) []string {
 		return secretPlugins
 	case ModeFull:
 		return append(append([]string{}, scaPlugins...), secretPlugins...)
+	case ModeHarden:
+		return hardenPlugins
 	default:
 		return scaPlugins
 	}
@@ -59,6 +72,17 @@ func Scan(ctx context.Context, opts ScanOptions) (*Result, error) {
 		names = append(names, "vulnmatch")
 	}
 
+	// Enricher plugins.
+	if opts.WithReachability {
+		names = append(names, "reachability")
+	}
+	if opts.WithSecretValidation {
+		names = append(names, "secretsvalidate")
+	}
+	if opts.WithLicenseEnrichment {
+		names = append(names, "license/depsdev")
+	}
+
 	plugins, err := pl.FromNames(names, nil)
 	if err != nil {
 		return nil, fmt.Errorf("loading plugins %v: %w", names, err)
@@ -74,9 +98,19 @@ func Scan(ctx context.Context, opts ScanOptions) (*Result, error) {
 	}
 
 	cfg := &scalibr.ScanConfig{
-		ScanRoots:  scalibrfs.RealFSScanRoots(target),
-		Plugins:    plugins,
-		MaxFileSize: opts.MaxFileSize,
+		ScanRoots:    scalibrfs.RealFSScanRoots(target),
+		Plugins:      plugins,
+		MaxFileSize:  opts.MaxFileSize,
+		DirsToSkip:   opts.DirsToSkip,
+		UseGitignore: opts.UseGitignore,
+	}
+
+	if opts.SkipDirRegex != "" {
+		re, err := regexp.Compile(opts.SkipDirRegex)
+		if err != nil {
+			return nil, fmt.Errorf("invalid skip-dir-regex %q: %w", opts.SkipDirRegex, err)
+		}
+		cfg.SkipDirRegex = re
 	}
 
 	sr := scalibr.New().Scan(ctx, cfg)

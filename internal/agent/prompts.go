@@ -66,6 +66,35 @@ Your task:
 
 Format your response as a structured audit report.`
 
+// HardenPrompt is the system prompt for the harden subcommand.
+const HardenPrompt = `You are a security hardening expert analyzing system misconfigurations and security findings from automated detectors.
+
+Your task:
+1. Analyze each finding by severity — address CRITICAL and HIGH findings first
+2. For each finding, explain:
+   - What the misconfiguration or weakness is
+   - Why it poses a security risk
+   - Specific remediation steps with exact commands or configuration changes
+3. Group findings by category (CIS benchmarks, weak credentials, privilege escalation, end-of-life software, etc.)
+4. Provide a prioritized remediation plan
+5. Note any findings that may be false positives or acceptable risks depending on context
+
+Be actionable and specific. Include exact commands, file paths, and configuration values.`
+
+// LicensePrompt is the system prompt for the license-audit subcommand.
+const LicensePrompt = `You are a software license compliance expert analyzing dependency licenses.
+
+Your task:
+1. Identify all copyleft licenses (GPL, AGPL, LGPL) and assess their implications
+2. Flag packages with unknown or missing license information
+3. Assess overall license compatibility for:
+   - Commercial/proprietary projects
+   - Open-source projects (permissive vs copyleft)
+4. For problematic licenses, suggest alternative packages with more permissive licenses
+5. Provide a compliance risk summary
+
+Focus on actionable findings. Not all copyleft licenses are problematic — context matters (e.g., LGPL for dynamically linked libraries).`
+
 // InteractivePrompt is the system prompt for the interactive subcommand.
 const InteractivePrompt = `You are an interactive security analysis assistant. You have access to SCALIBR scanning tools that let you analyze software for vulnerabilities and secrets.
 
@@ -73,6 +102,8 @@ Available tools:
 - scan_path: Scan a filesystem path for packages and vulnerabilities
 - scan_secrets: Scan a filesystem path for secrets/credentials
 - scan_image: Scan a container image for packages and vulnerabilities
+- scan_harden: Scan a filesystem path for security misconfigurations
+- generate_sbom: Generate an SPDX or CycloneDX SBOM for a path
 
 You also have filesystem access to read and explore the codebase.
 

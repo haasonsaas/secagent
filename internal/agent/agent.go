@@ -26,6 +26,12 @@ func QueryOneShot(ctx context.Context, prompt string, opts ...claudecode.Option)
 	return CollectText(ctx, iter)
 }
 
+// QueryOneShotJSON sends a single prompt to Claude with a JSON schema constraint and returns the raw JSON response.
+func QueryOneShotJSON(ctx context.Context, prompt string, schema map[string]any, opts ...claudecode.Option) (string, error) {
+	opts = append(opts, claudecode.WithJSONSchema(schema))
+	return QueryOneShot(ctx, prompt, opts...)
+}
+
 // CollectText drains a MessageIterator collecting all TextBlock content.
 func CollectText(ctx context.Context, iter claudecode.MessageIterator) (string, error) {
 	var sb strings.Builder

@@ -72,15 +72,15 @@ func TestHandleMCPRequest_ToolsList(t *testing.T) {
 	if !ok {
 		t.Fatal("tools should be []mcpToolDef")
 	}
-	if len(tools) != 3 {
-		t.Errorf("expected 3 tools, got %d", len(tools))
+	if len(tools) != 5 {
+		t.Errorf("expected 5 tools, got %d", len(tools))
 	}
 
 	names := map[string]bool{}
 	for _, tool := range tools {
 		names[tool.Name] = true
 	}
-	for _, expected := range []string{"scan_path", "scan_secrets", "scan_image"} {
+	for _, expected := range []string{"scan_path", "scan_secrets", "scan_image", "scan_harden", "generate_sbom"} {
 		if !names[expected] {
 			t.Errorf("missing tool: %s", expected)
 		}

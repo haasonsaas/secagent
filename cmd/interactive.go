@@ -14,7 +14,7 @@ import (
 )
 
 // RunInteractive starts an interactive session with Claude that has access to SCALIBR scanning tools.
-func RunInteractive(ctx context.Context, target string) error {
+func RunInteractive(ctx context.Context, target string, model string) error {
 	tools := mcptools.BuildAllTools()
 	server := claudecode.CreateSDKMcpServer("scalibr", "1.0.0", tools...)
 
@@ -31,6 +31,17 @@ func RunInteractive(ctx context.Context, target string) error {
 	cwd := target
 	if cwd == "" {
 		cwd, _ = os.Getwd()
+	}
+
+	opts := []claudecode.Option{
+		claudecode.WithSystemPrompt(agent.InteractivePrompt),
+		claudecode.WithSdkMcpServer("scalibr", server),
+		claudecode.WithAllowedTools(allowedTools...),
+		claudecode.WithCwd(cwd),
+		claudecode.WithMaxTurns(20),
+	}
+	if model != "" {
+		opts = append(opts, claudecode.WithModel(model))
 	}
 
 	return claudecode.WithClient(ctx, func(client claudecode.Client) error {
@@ -63,11 +74,5 @@ func RunInteractive(ctx context.Context, target string) error {
 		}
 
 		return scanner.Err()
-	},
-		claudecode.WithSystemPrompt(agent.InteractivePrompt),
-		claudecode.WithSdkMcpServer("scalibr", server),
-		claudecode.WithAllowedTools(allowedTools...),
-		claudecode.WithCwd(cwd),
-		claudecode.WithMaxTurns(20),
-	)
+	}, opts...)
 }

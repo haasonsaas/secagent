@@ -2,10 +2,15 @@ package cmd
 
 import (
 	"bufio"
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
 	"os"
+
+	"github.com/CycloneDX/cyclonedx-go"
+	"github.com/google/osv-scalibr/converter"
+	"github.com/google/osv-scalibr/converter/spdx"
 
 	"secagent/internal/formatter"
 	"secagent/internal/scanner"
@@ -132,6 +137,29 @@ func handleMCPRequest(ctx context.Context, req *jsonRPCRequest) *jsonRPCResponse
 					"required": []string{"image_ref"},
 				},
 			},
+			{
+				Name:        "scan_harden",
+				Description: "Scan a filesystem path for security misconfigurations (CIS benchmarks, weak credentials, privilege escalation, end-of-life software).",
+				InputSchema: map[string]any{
+					"type": "object",
+					"properties": map[string]any{
+						"path": map[string]any{"type": "string", "description": "Filesystem path to scan for misconfigurations"},
+					},
+					"required": []string{"path"},
+				},
+			},
+			{
+				Name:        "generate_sbom",
+				Description: "Generate a Software Bill of Materials (SBOM) in SPDX or CycloneDX format.",
+				InputSchema: map[string]any{
+					"type": "object",
+					"properties": map[string]any{
+						"path":   map[string]any{"type": "string", "description": "Filesystem path to scan for packages"},
+						"format": map[string]any{"type": "string", "description": "SBOM format: 'spdx' (default) or 'cdx'", "enum": []string{"spdx", "cdx"}},
+					},
+					"required": []string{"path"},
+				},
+			},
 		}
 		return &jsonRPCResponse{
 			JSONRPC: "2.0",
@@ -226,6 +254,72 @@ func handleToolCall(ctx context.Context, req *jsonRPCRequest) *jsonRPCResponse {
 			} else {
 				defer result.Image.CleanUp()
 				text = formatter.FormatImageLayers(result)
+			}
+		}
+
+	case "scan_harden":
+		path, _ := params.Arguments["path"].(string)
+		if path == "" {
+			path = "."
+		}
+		result, err := scanner.Scan(ctx, scanner.ScanOptions{
+			Target: path,
+			Mode:   scanner.ModeHarden,
+		})
+		if err != nil {
+			text = fmt.Sprintf("Scan error: %v", err)
+			isError = true
+		} else if !result.HasFindings() {
+			text = "No security misconfigurations detected."
+		} else {
+			text = formatter.FormatFindings(result.Findings())
+		}
+
+	case "generate_sbom":
+		path, _ := params.Arguments["path"].(string)
+		if path == "" {
+			path = "."
+		}
+		sbomFormat, _ := params.Arguments["format"].(string)
+		if sbomFormat == "" {
+			sbomFormat = "spdx"
+		}
+		result, err := scanner.Scan(ctx, scanner.ScanOptions{
+			Target: path,
+			Mode:   scanner.ModeSCA,
+		})
+		if err != nil {
+			text = fmt.Sprintf("Scan error: %v", err)
+			isError = true
+		} else {
+			inv := result.ScanResult.Inventory
+			switch sbomFormat {
+			case "cdx":
+				bom := converter.ToCDX(inv, converter.CDXConfig{
+					ComponentName: path,
+					ComponentType: "application",
+				})
+				var buf bytes.Buffer
+				encoder := cyclonedx.NewBOMEncoder(&buf, cyclonedx.BOMFileFormatJSON)
+				encoder.SetPretty(true)
+				if encErr := encoder.Encode(bom); encErr != nil {
+					text = fmt.Sprintf("Encoding error: %v", encErr)
+					isError = true
+				} else {
+					text = buf.String()
+				}
+			default:
+				doc := converter.ToSPDX23(inv, spdx.Config{
+					DocumentName:      "secagent-sbom",
+					DocumentNamespace: "https://secagent.dev/sbom/" + path,
+				})
+				out, encErr := json.MarshalIndent(doc, "", "  ")
+				if encErr != nil {
+					text = fmt.Sprintf("Encoding error: %v", encErr)
+					isError = true
+				} else {
+					text = string(out)
+				}
 			}
 		}
 

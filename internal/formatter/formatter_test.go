@@ -169,8 +169,8 @@ func TestFormatSecretsOnly(t *testing.T) {
 	if !strings.Contains(out, ".env:3") {
 		t.Error("should contain second location")
 	}
-	if !strings.Contains(out, "not validated") {
-		t.Error("first secret should show not validated")
+	if !strings.Contains(out, "NOT_VALIDATED") {
+		t.Error("first secret should show NOT_VALIDATED")
 	}
 }
 
