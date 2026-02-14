@@ -164,6 +164,9 @@ require (
 	www.velocidex.com/golang/regparser v0.0.0-20250203141505-31e704a67ef7 // indirect
 )
 
+// Local development: clone these repos as siblings of this directory.
+//   git clone https://github.com/google/osv-scalibr.git ../osv-scalibr
+//   git clone https://github.com/severity1/claude-agent-sdk-go.git ../claude-agent-sdk-go
 replace (
 	github.com/google/osv-scalibr => ../osv-scalibr
 	github.com/severity1/claude-agent-sdk-go => ../claude-agent-sdk-go
