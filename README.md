@@ -17,7 +17,7 @@ SCALIBR produces structured security data — packages, vulnerabilities, secrets
 cd ~/projects
 git clone https://github.com/google/osv-scalibr
 git clone https://github.com/severity1/claude-agent-sdk-go
-git clone https://github.com/<you>/secagent
+git clone https://github.com/haasonsaas/secagent
 
 # Build
 cd secagent
